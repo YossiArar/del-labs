@@ -1,1 +1,1 @@
-# del-labs
+# the-galery-system

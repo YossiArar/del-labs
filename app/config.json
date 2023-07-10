@@ -1,0 +1,185 @@
+{
+  "Date": {
+    "type": "dateinput",
+    "sidebar": true,
+    "desc": "",
+    "options": []
+  },
+  "Type of Certificate": {
+    "type": "selectbox",
+    "sidebar": true,
+    "desc": "",
+    "options": [
+      "Big",
+      "Small"
+    ]
+  },
+  "Certificate number": {
+    "type": "txt",
+    "sidebar": true,
+    "desc": "",
+    "options": []
+  },
+  "certificate validation": {
+    "type": "checkbox",
+    "sidebar": true,
+    "desc": "",
+    "options": []
+  },
+  "Type of jewelry": {
+    "type": "selectbox",
+    "sidebar": false,
+    "desc": "",
+    "options": [
+      "Ring",
+      "Earrings",
+      "Bracelet",
+      "Pendent",
+      "Necklace",
+      "Watch"
+    ]
+  },
+  "Metal Type": {
+    "type": "selectbox",
+    "sidebar": false,
+    "desc": "",
+    "options": [
+      "Platinum - 328",
+      "Rose Gold 10K",
+      "Rose Gold 14K",
+      "Rose Gold 18K",
+      "Rose Gold 24K",
+      "Yellow Gold 10K",
+      "Yellow Gold 14K",
+      "Yellow Gold 18K",
+      "Yellow Gold 24K",
+      "White Gold 10K",
+      "White Gold 14K",
+      "White Gold 18K",
+      "White Gold 24K",
+      "Sterling Silver"
+    ]
+  },
+  "Total Metal Wight": {
+    "type": "float",
+    "sidebar": false,
+    "desc": "Gram",
+    "options": []
+  },
+  "Stone Type": {
+    "type": "selectbox",
+    "sidebar": false,
+    "desc": "",
+    "options": [
+      "Natural Diamond",
+      "Gemstone",
+      "Lab Grown Diamond"
+    ]
+  },
+  "Stone Total Weight": {
+    "type": "float",
+    "sidebar": false,
+    "desc": "CT",
+    "options": []
+  },
+  "Amount of Stones": {
+    "type": "int",
+    "sidebar": false,
+    "desc": "",
+    "options": []
+  },
+  "Color Grade": {
+    "type": "selectbox",
+    "sidebar": false,
+    "desc": "",
+    "options": [
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J",
+      "K",
+      "L",
+      "M",
+      "N",
+      "O",
+      "P",
+      "Q",
+      "R",
+      "S",
+      "T",
+      "U",
+      "V",
+      "W",
+      "X",
+      "Y",
+      "Z",
+      "D-F",
+      "F-G",
+      "G-H",
+      "H-I",
+      "I-J",
+      "J-K"
+    ]
+  },
+  "Clarity Grade": {
+    "type": "selectbox",
+    "sidebar": false,
+    "desc": "",
+    "options": [
+      "IF",
+      "VVS1",
+      "VVS2",
+      "VS1",
+      "VS2",
+      "SI1",
+      "SI2",
+      "SI3",
+      "I1",
+      "I2",
+      "VVS1/2",
+      "VS1/2",
+      "SI1/2"
+    ]
+  },
+  "Cut Grade": {
+    "type": "selectbox",
+    "sidebar": false,
+    "desc": "",
+    "options": [
+      "Excellent",
+      "Very Good",
+      "Good",
+      "Poor"
+    ]
+  },
+  "Additional Comments": {
+    "type": "txt",
+    "sidebar": true,
+    "desc": "",
+    "options": []
+  },
+  "Apprised Retail Price": {
+    "type": "float",
+    "sidebar": true,
+    "desc": "",
+    "options": []
+  },
+  "Currency": {
+    "type": "selectbox",
+    "sidebar": true,
+    "desc": "",
+    "options": [
+      "$",
+      "€"
+    ]
+  },
+  "Image Path": {
+    "type": "image",
+    "sidebar": true,
+    "desc": "",
+    "options": []
+  }
+}

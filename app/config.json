@@ -155,14 +155,14 @@
       "Poor"
     ]
   },
-  "Additional Comments": {
+  "Additional comments": {
     "type": "txt",
     "sidebar": true,
     "desc": "",
     "options": []
   },
   "Apprised Retail Price": {
-    "type": "float",
+    "type": "int",
     "sidebar": true,
     "desc": "",
     "options": []
@@ -178,7 +178,7 @@
   },
   "Image Path": {
     "type": "image",
-    "sidebar": true,
+    "sidebar": false,
     "desc": "",
     "options": []
   }

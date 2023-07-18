@@ -1,105 +1,111 @@
-import os
-from docx import Document
+from docx.shared import Inches
 
-REPLACE_OPTIONS = '..', '…', ' .', ':'  # , "\""
-SPLIT_OPTIONS = '.', ':'
-IGNORE_ROWS = []  # ['Additional Comments', 'This Jewelry has been tested and verified by a GG']
-CERTIFICATE = 'Certificate'
+# -*- coding: utf-8 -*-
 
-DATA = {'Date': '2023-05-06', 'Type of Certificate': 'Big', 'Certificate number': '', 'certificate validation': False,
-        'Additional Comments': '', 'Apprised Retail Price': 0.0, 'Currency': '$', 'Image Path': None,
-        'Type of jewelry': 'Ring', 'Metal Type': 'Platinum\xa0(328)', 'Total Metal Wight': 0.0,
-        'Stone Type': 'Natural Diamond', 'Stone Total Weight': 0.0, 'Amount of Stones': 0, 'Color Grade': 'D',
-        'Clarity Grade': 'IF', 'Cut Grade': 'Excellent'}
+'''
+Implement floating image based on python-docx.
 
+- Text wrapping style: BEHIND TEXT <wp:anchor behindDoc="1">
+- Picture position: top-left corner of PAGE `<wp:positionH relativeFrom="page">`.
 
-class Word:
-    def __init__(self, doc_path: str):
-        if os.path.exists(path=doc_path):
-            self.__main_document = Document(docx=doc_path)
-        else:
-            raise print(f"{doc_path} is not exists")
-        self.__metadata, self.__new_document = {}, None
-        self.__initiate_document_object()
+Create a docx sample (Layout | Positions | More Layout Options) and explore the
+source xml (Open as a zip | word | document.xml) to implement other text wrapping
+styles and position modes per `CT_Anchor._anchor_xml()`.
+'''
 
-    @property
-    def metadata(self):
-        return self.__metadata
-
-    @staticmethod
-    def __extract_value(values: list):
-        value = ''
-        iterations = 0
-        # first check
-        for v in values:
-            if v:
-                value += f" {v}"
-            if value:
-                iterations += 1
-            if iterations > 3:
-                break
-        # second check
-        if value:
-            value = value.replace('  ', ' ')
-            value = value if value[0] != ' ' else value[1:]
-            value = value if value[-1] != ' ' else value[:-1]
-        return value
-
-    def __initiate_document_object(self):
-        self.__new_document, paragraphs = self.__main_document, self.__main_document.paragraphs
-        update_values = {}
-
-        for i, p in enumerate(paragraphs, 1):
-            if p.text:
-                # ignore specific chars
-                temp_txt = p.text
-                for rp in REPLACE_OPTIONS:
-                    temp_txt = temp_txt.replace(rp, ' ')
-                txt_split = temp_txt.replace('  ', '/').split('/')
-                if len(txt_split) > 2:
-                    key = None if not txt_split[0] and i > 1 else CERTIFICATE if i < 2 else txt_split[0]
-                    if key and key not in IGNORE_ROWS:
-                        # check all values
-                        value = self.__extract_value(values=txt_split[1:])
-                        if value not in update_values.keys():
-                            update_values.setdefault(value, key)
-                        self.__metadata.setdefault(key if key is not None else str(value), value)
-            paragraphs[i - 1] = p
-        # update paragraphs
-        for i, p in enumerate(paragraphs):
-            self.__new_document.paragraphs.insert(i, paragraphs[i])
-
-    def display_template(self, save_path=None):
-        for p in self.__new_document.paragraphs:
-            print(p.text)
-
-        if save_path:
-            save_path = save_path if '.docx' in save_path else f"{save_path}.docx"
-            self.__main_document.save(save_path)
-
-    # paragraphs = self.__doc.paragraphs
-    # for i, p in enumerate(self.__doc.paragraphs, 1):
-    #     if p.text:
-    #         # ignore specific chars
-    #         for rp in REPLACE_OPTIONS:
-    #             p.text = p.text.replace(rp, ' ')
-    #         txt_split = p.text.replace('  ', '/').split('/')
-    #         if len(txt_split) > 2:
-    #             key = None if not txt_split[0] else txt_split[0]
-    #             if key:
-    #                 # check all values
-    #                 value = ''
-    #                 for v in txt_split[1:]:
-    #                     if v:
-    #                         value += v
-    #                 metadata.setdefault(key if key is not None else str(value),
-    #                                     value if value[0] != ' ' else value[1:])
-    #             print(f"{i}. {p.text}\n")  # \n{metadata}\n")
-    #             paragraphs[i - 1] = p
+from docx.oxml import parse_xml, register_element_cls
+from docx.oxml.ns import nsdecls
+from docx.oxml.shape import CT_Picture
+from docx.oxml.xmlchemy import BaseOxmlElement, OneAndOnlyOne
 
 
-if __name__ == '__main__':
-    path = '../files/template.docx'
-    word_obj = Word(doc_path=path)
-    print(word_obj.metadata)
-    # word_obj.display_template(save_path='new_template')
+# refer to docx.oxml.shape.CT_Inline
+class CT_Anchor(BaseOxmlElement):
+    """
+    ``<w:anchor>`` element, container for a floating image.
+    """
+    extent = OneAndOnlyOne('wp:extent')
+    docPr = OneAndOnlyOne('wp:docPr')
+    graphic = OneAndOnlyOne('a:graphic')
+
+    @classmethod
+    def new(cls, cx, cy, shape_id, pic, pos_x, pos_y):
+        """
+        Return a new ``<wp:anchor>`` element populated with the values passed
+        as parameters.
+        """
+        anchor = parse_xml(cls._anchor_xml(pos_x, pos_y))
+        anchor.extent.cx = cx
+        anchor.extent.cy = cy
+        anchor.docPr.id = shape_id
+        anchor.docPr.name = 'Picture %d' % shape_id
+        anchor.graphic.graphicData.uri = (
+            'http://schemas.openxmlformats.org/drawingml/2006/picture'
+        )
+        anchor.graphic.graphicData._insert_pic(pic)
+        return anchor
+
+    @classmethod
+    def new_pic_anchor(cls, shape_id, rId, filename, cx, cy, pos_x, pos_y):
+        """
+        Return a new `wp:anchor` element containing the `pic:pic` element
+        specified by the argument values.
+        """
+        pic_id = 0  # Word doesn't seem to use this, but does not omit it
+        pic = CT_Picture.new(pic_id, filename, rId, cx, cy)
+        anchor = cls.new(cx, cy, shape_id, pic, pos_x, pos_y)
+        anchor.graphic.graphicData._insert_pic(pic)
+        return anchor
+
+    @classmethod
+    def _anchor_xml(cls, pos_x, pos_y):
+        return (
+                '<wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" \n'
+                '           behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1" \n'
+                '           %s>\n'
+                '  <wp:simplePos x="0" y="0"/>\n'
+                '  <wp:positionH relativeFrom="page">\n'
+                '    <wp:posOffset>%d</wp:posOffset>\n'
+                '  </wp:positionH>\n'
+                '  <wp:positionV relativeFrom="page">\n'
+                '    <wp:posOffset>%d</wp:posOffset>\n'
+                '  </wp:positionV>\n'
+                '  <wp:extent cx="914400" cy="914400"/>\n'
+                '  <wp:wrapNone/>\n'
+                '  <wp:docPr id="666" name="unnamed"/>\n'
+                '  <wp:cNvGraphicFramePr>\n'
+                '    <a:graphicFrameLocks noChangeAspect="1"/>\n'
+                '  </wp:cNvGraphicFramePr>\n'
+                '  <a:graphic>\n'
+                '    <a:graphicData uri="URI not set"/>\n'
+                '  </a:graphic>\n'
+                '</wp:anchor>' % (nsdecls('wp', 'a', 'pic', 'r'), int(pos_x), int(pos_y))
+        )
+
+
+# refer to docx.parts.story.BaseStoryPart.new_pic_inline
+def new_pic_anchor(part, image_descriptor, width, height, pos_x, pos_y):
+    """Return a newly-created `w:anchor` element.
+
+    The element contains the image specified by *image_descriptor* and is scaled
+    based on the values of *width* and *height*.
+    """
+    rId, image = part.get_or_add_image(image_descriptor)
+    cx, cy = image.scaled_dimensions(width, height)
+    shape_id, filename = part.next_id, image.filename
+    return CT_Anchor.new_pic_anchor(shape_id, rId, filename, cx, cy, pos_x, pos_y)
+
+
+# refer to docx.text.run.add_picture
+def add_float_picture(p, image_path_or_stream, width=Inches(1.91), height=Inches(1.91),
+                      pos_x=Inches(3.69),  # Pt(300),
+                      pos_y=Inches(0.1)):
+    """Add float picture at fixed position `pos_x` and `pos_y` to the top-left point of page.
+    """
+    run = p.add_run()
+    anchor = new_pic_anchor(run.part, image_path_or_stream, width, height, pos_x, pos_y)
+    run._r.add_drawing(anchor)
+
+
+# refer to docx.oxml.shape.__init__.py
+register_element_cls('wp:anchor', CT_Anchor)

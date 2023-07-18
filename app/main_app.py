@@ -156,9 +156,9 @@ class App:
         doc_full_path = f"{doc_path}{doc_name}"
         self.__doc.save(doc_full_path)
 
+        with open(doc_full_path, 'rb') as d:
+            data = d.read()
         # # check option for present word document
-        # with open(doc_full_path, 'rb') as d:
-        #     data = d.read()
         # markdown_text, doc = self.__convert_docx_to_markdown(input_file=doc_full_path), self.__doc
         # markdown_file = doc_full_path.replace('.docx', '_temp.md')
         # with open(markdown_file, 'w', encoding='utf-8') as f:

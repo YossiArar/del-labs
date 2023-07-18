@@ -1,3 +1,5 @@
+import platform
+
 import streamlit as st
 import os
 import json
@@ -41,7 +43,7 @@ class App:
             case Types.CB:
                 value = self.__st.checkbox(label=label, value=False)
             case Types.IMAGE:
-                value = self.__st.text_input(label).replace('file://', '')
+                value = self.__st.text_input(label).replace(f"file:{'///' if 'Windows' in platform.platform() else '//'}", '')
                 if value:
                     if os.path.exists(value):
                         if value:

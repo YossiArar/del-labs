@@ -63,7 +63,7 @@
   "Total Metal Wight": {
     "type": "float",
     "sidebar": false,
-    "desc": "Gram",
+    "desc": "GR",
     "options": []
   },
   "Stone Type": {
@@ -156,10 +156,11 @@
     ]
   },
   "Additional comments": {
-    "type": "txt",
+    "type": "selectbox",
     "sidebar": true,
     "desc": "",
-    "options": []
+    "options": ["This Jewelry has been tested and verified by a GG",
+    "This Jewelry has been tested and verified by a RR"]
   },
   "Apprised Retail Price": {
     "type": "int",
@@ -179,6 +180,12 @@
   "Image Path": {
     "type": "image",
     "sidebar": false,
+    "desc": "",
+    "options": []
+  },
+  "Ignore right side data": {
+    "type": "checkbox",
+    "sidebar": true,
     "desc": "",
     "options": []
   }

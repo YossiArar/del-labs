@@ -4,7 +4,7 @@ import streamlit as st
 import os
 import json
 
-from docx.shared import Inches
+from docx.shared import Inches, Cm
 
 from app.read import add_float_picture
 
@@ -52,19 +52,27 @@ class App:
                     if os.path.exists(value):
                         if value:
                             image_data = {}
-                            width, height, pos_x, pos_y = self.__st.columns(4)
+                            size_type, width, height, pos_x, pos_y, image_col = self.__st.columns(6)
+                            with size_type:
+                                size_ut = self.__st.radio(label='size_units', options=['CM', 'INCHES'])
+                                image_data.setdefault('size_units', size_ut)
+                                size_utv = [4.85, 4.85, 9.37, 0.25] if size_ut == 'CM' else [1.91, 1.91, 3.69, 0.1]
+                                self.__st.info(f"{size_ut} default values: {size_utv}")
                             for col, label, val in zip([width, height, pos_x, pos_y],
                                                        ['width', 'height', 'position_x', 'position_y'],
-                                                       [1.91, 1.91, 3.69, 0.1]):
+                                                       size_utv):
                                 with col:
-                                    key_val = self.__st.number_input(label=label, value=val)
+                                    key_val = self.__st.number_input(label=f"{label}:", value=val)
                                     image_data.setdefault(label, key_val)
-                            image = Image.open(value)
-                            self.__st.image(image, caption='Your image selection')
-                            if image_data:
-                                self.__certificate_update['image_data'] = image_data
+                            with image_col:
+                                image = Image.open(value)
+                                self.__st.image(image, caption='Your image selection')
+                                if image_data:
+                                    self.__certificate_update['image_data'] = image_data
                         else:
                             self.__st.error(f"The file path: {value} not exists.")
+        if desc:
+            value = f'{value} {desc}'
         self.__certificate_update[key] = value
 
     def __convert_docx_to_markdown(self, input_file, output_file=None):
@@ -99,12 +107,15 @@ class App:
                     self.__set_columns_by_type(key=k, obj=o)
 
     def __create_new_template(self):
+        ignore_right_side, left_size_margin, max_left_margin = self.__certificate_update.get(
+            'Ignore right side data'), {}, 0
         for pi, p in enumerate(self.__doc.paragraphs, 1):
             p.paragraph_format.alignment = 2
             p.paragraph_format.left_indent = 1
+            p.paragraph_format.line_spacing = 0.85
             p.paragraph_format.keep_together = True
             for field, field_value in self.__certificate_update.items():
-                if field_value is not None and len(str(field_value)) > 1:
+                if field_value is not None and len(str(field_value)) > 0:
                     field_key, line_field_margin = '{' + field + '}', 0
                     # field_key, line_field_margin = field, 0
                     if field_key in p.text:
@@ -112,45 +123,73 @@ class App:
                         # Loop added to work with runs (strings with same style)
                         for i in range(len(inline)):
                             if field_key in inline[i].text:
-                                if field_key in inline[i].text:
+                                if ignore_right_side:
+                                    text = inline[i].text.replace(field_key, str(field_value), 1)
+                                else:
                                     text = inline[i].text.replace(field_key, str(field_value))
-                                    # if len(text) != MAX_CHARS:
-                                    if len(text) > 0:
-                                        split_values = text.split('  ')
-                                        if len(split_values) > 0:
-                                            start_p, index = None, 0
-                                            # found start p value
-                                            for val in split_values:
+                                if len(text) > 0:
+                                    split_values = text.split('  ')
+                                    if len(split_values) > 0:
+                                        start_p, index = None, 0
+                                        # found start p value
+                                        for val in split_values:
+                                            index += 1
+                                            if str(field_value) in val:
+                                                start_p = str(val[(0 if str(val)[0] != ' ' else 1):(
+                                                    -1 if str(val)[-1] == ' ' else len(val))])
+                                                if '……' in start_p:
+                                                    left_size_margin[field_key[1:-1]] = [len(start_p), start_p]
+                                                    if len(start_p) > max_left_margin:
+                                                        max_left_margin = len(start_p)
+                                                break
+                                        if start_p and not ignore_right_side:
+                                            end_p, field_value_len = '', len(field_key)
+                                            for val in split_values[index:]:
                                                 index += 1
                                                 if str(field_value) in val:
-                                                    start_p = str(val[(0 if str(val)[0] != ' ' else 1):(
+                                                    end_p = str(val[(0 if str(val)[0] != ' ' else 1):(
                                                         -1 if str(val)[-1] == ' ' else len(val))])
                                                     break
-                                            if start_p:
-                                                end_p, field_value_len = '', len(field_key)
-                                                for val in split_values[index:]:
-                                                    index += 1
-                                                    if str(field_value) in val:
-                                                        end_p = str(val[(0 if str(val)[0] != ' ' else 1):(
-                                                            -1 if str(val)[-1] == ' ' else len(val))])
-                                                        break
-                                                space_margin, space_value = PART1_LEN - (len(start_p) + len(end_p)), ''
-                                                while space_margin != 0:
-                                                    space_value += ' '
-                                                    space_margin = space_margin - 1
-                                                part1 = f"{start_p}{space_value}"
-                                                print(f"p1 = {len(part1)}, {field_value_len}")
-                                                text = f"{part1}{end_p}"
-                                                if len(text) > MAX_CHARS:
-                                                    text = text.replace(space_value[:len(text) - MAX_CHARS], '', 1)
-                                    inline[i].text = text
-                                    print(text, len(text))
-            if pi == 1 and self.__certificate_update.get('Image Path'):
+                                            space_margin, space_value = PART1_LEN - (len(start_p) + len(end_p)), ''
+                                            while space_margin != 0:
+                                                space_value += ' '
+                                                space_margin = space_margin - 1
+                                            part1 = f"{start_p}{space_value}"
+                                            print(f"p1 = {len(part1)}, {field_value_len}")
+                                            text = f"{part1}{end_p}"
+                                            if len(text) > MAX_CHARS:
+                                                text = text.replace(space_value[:len(text) - MAX_CHARS], '', 1)
+                                if pi != 1 and ignore_right_side and len(text) > PART1_LEN / 2:
+                                    text = text[:int(PART1_LEN / 2)]
+                                inline[i].text = text
+                                print(text, len(text))
+            if pi == 1 and self.__certificate_update.get('Image Path'):  # Inches
                 add_float_picture(p=p, image_path_or_stream=self.__certificate_update.get('Image Path'),
-                                  width=Inches(self.__certificate_update.get('image_data').get('width')),
-                                  height=Inches(self.__certificate_update.get('image_data').get('height')),
-                                  pos_x=Inches(self.__certificate_update.get('image_data').get('position_x')),
-                                  pos_y=Inches(self.__certificate_update.get('image_data').get('position_y')))
+                                  width=self.__certificate_update.get('image_data').get('width'),
+                                  height=self.__certificate_update.get('image_data').get('height'),
+                                  pos_x=self.__certificate_update.get('image_data').get('position_x'),
+                                  pos_y=self.__certificate_update.get('image_data').get('position_y'),
+                                  size_units=self.__certificate_update.get('image_data').get('size_units'))
+        # last update for doc ph
+        new_p_data = {}
+        for key, values in left_size_margin.items():
+            if values[0] < max_left_margin:
+                space_margin = max_left_margin - values[0]
+                split_p, space_value = values[1].split(key), ''
+                while space_margin > 0:
+                    space_value += '…'
+                    space_margin = space_margin - 1
+                new_p_value = f"{key}{space_value}{split_p[-1]}"
+                new_p_data[key] = [values[1], new_p_value, len(new_p_value)]
+                for pi, p in enumerate(self.__doc.paragraphs, 1):
+                    if new_p_data[key][0] in p.text:
+                        inline = p.runs
+                        for i in range(len(inline)):
+                            if new_p_data[key][0] in inline[i].text:
+                                text = inline[i].text.replace(new_p_data[key][0], new_p_data[key][1])
+                                inline[i].text = text
+                                print(text, len(text))
+                                break
 
         doc_path, doc_name = f"{os.getcwd()}/files/certificates/", f"{self.__certificate_update['Date']}_{self.__certificate_update['Certificate number']}.docx"
         doc_full_path = f"{doc_path}{doc_name}"

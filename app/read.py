@@ -1,4 +1,4 @@
-from docx.shared import Inches
+from docx.shared import Inches, Cm
 
 # -*- coding: utf-8 -*-
 
@@ -97,11 +97,18 @@ def new_pic_anchor(part, image_descriptor, width, height, pos_x, pos_y):
 
 
 # refer to docx.text.run.add_picture
-def add_float_picture(p, image_path_or_stream, width: Inches = Inches(1.91), height: Inches = Inches(1.91),
-                      pos_x: Inches = Inches(3.69),  # Pt(300),
-                      pos_y: Inches = Inches(0.1)):
+# def add_float_picture(p, image_path_or_stream, width: Inches = Inches(1.91), height: Inches = Inches(1.91),
+#                       pos_x: Inches = Inches(3.69),  # Pt(300),
+#                       pos_y: Inches = Inches(0.1)):
+def add_float_picture(p, image_path_or_stream, width=Inches(1.91), height=Inches(1.91),
+                      pos_x=Inches(3.69),  # Pt(300),
+                      pos_y=Inches(0.1), size_units: str = 'CM'):
     """Add float picture at fixed position `pos_x` and `pos_y` to the top-left point of page.
     """
+    if size_units == 'CM':
+        width, height, pos_x, pos_y = Cm(width), Cm(height), Cm(pos_x), Cm(pos_y)
+    else:  # inches
+        width, height, pos_x, pos_y = Inches(width), Inches(height), Inches(pos_x), Inches(pos_y)
     run = p.add_run()
     anchor = new_pic_anchor(run.part, image_path_or_stream, width, height, pos_x, pos_y)
     run._r.add_drawing(anchor)

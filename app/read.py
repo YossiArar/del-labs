@@ -97,9 +97,9 @@ def new_pic_anchor(part, image_descriptor, width, height, pos_x, pos_y):
 
 
 # refer to docx.text.run.add_picture
-def add_float_picture(p, image_path_or_stream, width=Inches(1.91), height=Inches(1.91),
-                      pos_x=Inches(3.69),  # Pt(300),
-                      pos_y=Inches(0.1)):
+def add_float_picture(p, image_path_or_stream, width: Inches = Inches(1.91), height: Inches = Inches(1.91),
+                      pos_x: Inches = Inches(3.69),  # Pt(300),
+                      pos_y: Inches = Inches(0.1)):
     """Add float picture at fixed position `pos_x` and `pos_y` to the top-left point of page.
     """
     run = p.add_run()

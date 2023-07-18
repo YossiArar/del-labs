@@ -3,6 +3,9 @@ import platform
 import streamlit as st
 import os
 import json
+
+from docx.shared import Inches
+
 from app.read import add_float_picture
 
 from docx import Document
@@ -43,14 +46,25 @@ class App:
             case Types.CB:
                 value = self.__st.checkbox(label=label, value=False)
             case Types.IMAGE:
-                value = self.__st.text_input(label).replace(f"file:{'///' if 'Windows' in platform.platform() else '//'}", '')
+                value = self.__st.text_input(label).replace(
+                    f"file:{'///' if 'Windows' in platform.platform() else '//'}", '')
                 if value:
                     if os.path.exists(value):
                         if value:
+                            image_data = {}
+                            width, height, pos_x, pos_y = self.__st.columns(4)
+                            for col, label, val in zip([width, height, pos_x, pos_y],
+                                                       ['width', 'height', 'position_x', 'position_y'],
+                                                       [1.91, 1.91, 3.69, 0.1]):
+                                with col:
+                                    key_val = self.__st.number_input(label=label, value=val)
+                                    image_data.setdefault(label, key_val)
                             image = Image.open(value)
                             self.__st.image(image, caption='Your image selection')
-                    else:
-                        self.__st.error(f"The file path: {value} not exists.")
+                            if image_data:
+                                self.__certificate_update['image_data'] = image_data
+                        else:
+                            self.__st.error(f"The file path: {value} not exists.")
         self.__certificate_update[key] = value
 
     def __initiate_ui_field_options(self, sidebar: bool):
@@ -122,7 +136,11 @@ class App:
                                 inline[i].text = text
                                 print(text, len(text))
             if pi == 1 and self.__certificate_update.get('Image Path'):
-                add_float_picture(p, self.__certificate_update.get('Image Path'))
+                add_float_picture(p=p, image_path_or_stream=self.__certificate_update.get('Image Path'),
+                                  width=Inches(self.__certificate_update.get('image_data').get('width')),
+                                  height=Inches(self.__certificate_update.get('image_data').get('height')),
+                                  pos_x=Inches(self.__certificate_update.get('image_data').get('position_x')),
+                                  pos_y=Inches(self.__certificate_update.get('image_data').get('position_y')))
 
         doc_path, doc_name = f"{os.getcwd()}/files/certificates/", f"{self.__certificate_update['Date']}_{self.__certificate_update['Certificate number']}.docx"
         doc_full_path = f"{doc_path}{doc_name}"

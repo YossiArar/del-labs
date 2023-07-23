@@ -182,11 +182,5 @@
     "sidebar": false,
     "desc": "",
     "options": []
-  },
-  "Ignore right side data": {
-    "type": "checkbox",
-    "sidebar": true,
-    "desc": "",
-    "options": []
   }
 }

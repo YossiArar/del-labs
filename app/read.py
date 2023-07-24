@@ -116,3 +116,59 @@ def add_float_picture(p, image_path_or_stream, width=Inches(1.91), height=Inches
 
 # refer to docx.oxml.shape.__init__.py
 register_element_cls('wp:anchor', CT_Anchor)
+
+
+
+# max_size = 0
+# pdf_file = PyPDF2.PdfReader(open(TEMPLATE_PATH, "rb"))
+#
+# # Count number of pages in our pdf file
+# number_of_pages = len(pdf_file.pages)
+# # print number of pages in the pdf file
+# print("Number of pages in this pdf: " + str(number_of_pages))
+#
+# # Read first page
+# page = pdf_file.pages[0]
+#
+# # print entire text of first page of the pdf
+# text = page.extract_text().replace(' ', '')
+# # print(f"before: {text}")
+#
+# for field, field_value in FIELDS_DATA.items():
+#     field_key = '{' + field.replace(' ', '') + '}'
+#     if field not in IGNORE_FIELDS and field_key in text and len(str(field_value)) > 0:
+#         # replace text in pdf
+#         field_margin = len(field_key) - len(str(field_value))
+#         text = text.replace(field_key, str(field_value))
+#         # update title
+#         text = text.replace(field_key[1:-1], field)
+#         # print(text)
+# pdf_lines = text.splitlines()
+# for pl in pdf_lines:
+#     if len(pl) > max_size:
+#         max_size = len(pl)
+# print(f"\n\nafter: {text}")
+# # # # page_size = (page.mediabox.width, page.mediabox.height)
+# #
+# pdf_text = ''
+# for field, field_value in FIELDS_DATA.items():
+#     if field not in IGNORE_FIELDS and len(str(field_value)) > 0:
+#         field_margin, value_margin = len(field), len(str(field_value))
+#         values_margin = field_margin - value_margin + value_margin
+#         margin = max_size - values_margin  # (field_margin + value_margin)
+#         margin = '.' * margin
+#         row_text = f"{field}{margin}{field_value}"
+#         # w = len(row_text) + 6
+#         # new_p = (210 - w) / 2
+#         # value_whitespace_margin = int(str(field_value).count(' '))
+#         # row_text = f"{row_text[:-value_margin if values_margin > 0 else -value_margin]}{field_value}"
+#         # row_text = f"{row_text[:len(row_text) if value_whitespace_margin == 0 else -value_whitespace_margin]}{field_value}"
+#         # row_text = textwrap.fill(text=row_text, width=max_size, tabsize=0)
+#         # row_text = textwrap.shorten(row_text, width=len(row_text))
+#         # if len(row_text) == max_size:
+#         pdf_text += f"{row_text}\n"
+#         print(len(row_text), field_margin, value_margin, str(field_value))
+# # pdf_text = textwrap.indent('\n', pdf_text)
+# # pdf_text = textwrap.fill(pdf_text)
+# print(f"\n\nafter update:\n"
+#       f"{pdf_text}")

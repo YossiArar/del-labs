@@ -1,5 +1,5 @@
 import platform
-
+import mammoth
 import streamlit as st
 import os
 import json
@@ -117,9 +117,9 @@ class App:
         left_side_values, counter = [], 0
         for pi, p in enumerate(self.__doc.paragraphs, 1):
             p.paragraph_format.alignment = 2
-            p.paragraph_format.left_indent = 1
-            p.paragraph_format.line_spacing = 0.85
-            p.paragraph_format.keep_together = True
+            p.paragraph_format.left_indent = Inches(2.75)
+            # p.paragraph_format.line_spacing = 0.85
+            # p.paragraph_format.keep_together = True
             for field, field_value in self.__certificate_update.items():
                 if field_value is not None and len(str(field_value)) > 0:
                     field_key, line_field_margin = '{' + field + '}', 0
@@ -188,8 +188,8 @@ class App:
                                     left_side_values.append(inline[i].text)
                                 p.text = inline[i].text  # .replace(',', '.')
                                 counter += 1
-                                print(pi, p.text, len(p.text), len(p.text) - len(str(field_value)))
-                                # print(inline[i].text, len(inline[i].text))
+                                # print(pi, p.text, len(p.text), len(p.text) - len(str(field_value)))
+                                print(inline[i].text)
             if pi == 1 and self.__certificate_update.get('Image Path'):  # Inches
                 add_float_picture(p=p, image_path_or_stream=self.__certificate_update.get('Image Path'),
                                   width=self.__certificate_update.get('image_data').get('width'),
@@ -203,19 +203,24 @@ class App:
         doc_path, doc_name = f"{os.getcwd()}/files/certificates/", f"{self.__certificate_update['Date']}_{self.__certificate_update['Certificate number']}.docx"
         doc_full_path = f"{doc_path}{doc_name}"
         self.__doc.save(doc_full_path)
+        self.__convert_to_html(path=doc_full_path)
 
+        # read data for download file
         with open(doc_full_path, 'rb') as d:
             data = d.read()
-        # # check option for present word document
-        # markdown_text, doc = self.__convert_docx_to_markdown(input_file=doc_full_path), self.__doc
-        # markdown_file = doc_full_path.replace('.docx', '_temp.md')
-        # with open(markdown_file, 'w', encoding='utf-8') as f:
-        #     f.write(markdown.markdown(str(data)))
-        # st.markdown(doc.paragraphs, unsafe_allow_html=False)
-
         download_button = self.__st.download_button(label='Download Certificate', data=data, file_name=doc_name)
-        if download_button:
-            self.__st.success("Your new certificate is ready to use")
+
+
+    def __convert_to_html(self, path: str):
+        with open(path, "rb") as docx_file:
+            result = mammoth.convert_to_html(docx_file)
+            html = result.value
+        html_path = path.replace('docx', 'html')
+        with open(html_path, "w") as html_file:
+            html_file.write(html)
+            html_file.close()
+        self.__st.success("Your new certificate is ready to use")
+        self.__st.write("Click here [link](%s) to print or download file" % html_path)
 
     def run(self):
         # step 1 - set sidebar params

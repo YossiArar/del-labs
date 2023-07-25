@@ -3,7 +3,7 @@ import mammoth
 import streamlit as st
 import os
 import json
-
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import Inches, Cm
 
 from app.read import add_float_picture
@@ -116,8 +116,10 @@ class App:
     def __create_new_template(self):
         left_side_values, counter = [], 0
         for pi, p in enumerate(self.__doc.paragraphs, 1):
+            p.paragraph_format.left_indent = 2
             p.paragraph_format.alignment = 2
-            p.paragraph_format.left_indent = Inches(2.75)
+            p.paragraph_format.first_line_indent = 0  # check that
+
             # p.paragraph_format.line_spacing = 0.85
             # p.paragraph_format.keep_together = True
             for field, field_value in self.__certificate_update.items():
@@ -198,6 +200,10 @@ class App:
                                   pos_y=self.__certificate_update.get('image_data').get('position_y'),
                                   size_units=self.__certificate_update.get('image_data').get('size_units'))
 
+            # p.paragraph_format.left_indent = 0
+            # p.paragraph_format.alignment = 4
+            # p.paragraph_format.line_spacing = 0.85
+
         # last update for doc ph
         # print(left_side_values, counter)
         doc_path, doc_name = f"{os.getcwd()}/files/certificates/", f"{self.__certificate_update['Date']}_{self.__certificate_update['Certificate number']}.docx"
@@ -209,7 +215,6 @@ class App:
         with open(doc_full_path, 'rb') as d:
             data = d.read()
         download_button = self.__st.download_button(label='Download Certificate', data=data, file_name=doc_name)
-
 
     def __convert_to_html(self, path: str):
         with open(path, "rb") as docx_file:

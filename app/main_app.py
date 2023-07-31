@@ -114,18 +114,16 @@ class App:
                     self.__set_columns_by_type(key=k, obj=o)
 
     def __create_new_template(self):
-        left_side_values, counter = [], 0
+        left_side_values, ls_max_chars, counter = {}, 0, 0
+        # doc = self.__doc.styles
         for pi, p in enumerate(self.__doc.paragraphs, 1):
-            p.paragraph_format.left_indent = 2
-            p.paragraph_format.alignment = 2
-            p.paragraph_format.first_line_indent = 0  # check that
-
-            # p.paragraph_format.line_spacing = 0.85
+            # p.paragraph_format.alignment = 2
+            # p.paragraph_format.left_indent = 0
+            # p.paragraph_format.line_spacing = 1.15
             # p.paragraph_format.keep_together = True
             for field, field_value in self.__certificate_update.items():
                 if field_value is not None and len(str(field_value)) > 0:
                     field_key, line_field_margin = '{' + field + '}', 0
-                    # field_key, line_field_margin = field, 0
                     if field_key in p.text:
                         inline = p.runs
                         # Loop added to work with runs (strings with same style)
@@ -135,63 +133,22 @@ class App:
                                     inline[i].text = inline[i].text.replace(field_key, str(field_value), 1)
                                 else:
                                     inline[i].text = inline[i].text.replace(field_key, str(field_value))
-                                # if len(text) > 0:
-                                #     split_values = text.split('  ')
-                                #     if len(split_values) > 0:
-                                #         start_p, index = None, 0
-                                #         # found start p value
-                                #         for val in split_values:
-                                #             index += 1
-                                #             if str(field_value) in val:
-                                #                 start_p = str(val[(0 if str(val)[0] != ' ' else 1):(
-                                #                     -1 if str(val)[-1] == ' ' else len(val))])
-                                #                 break
-                                #         if start_p and PUT_RIGHT_SIDE:
-                                #             end_p, field_value_len = '', len(field_key)
-                                #             for val in split_values[index:]:
-                                #                 index += 1
-                                #                 if str(field_value) in val:
-                                #                     end_p = str(val[(0 if str(val)[0] != ' ' else 1):(
-                                #                         -1 if str(val)[-1] == ' ' else len(val))])
-                                #                     break
-                                #             space_margin, space_value = PART1_LEN - (len(start_p) + len(end_p)), ''
-                                #             while space_margin != 0:
-                                #                 space_value += ' '
-                                #                 space_margin = space_margin - 1
-                                #             part1 = f"{start_p}{space_value}"
-                                #             print(f"p1 = {len(part1)}, {field_value_len}")
-                                #             text = f"{part1}{end_p}"
-                                #             if len(text) > MAX_CHARS:
-                                #                 text = text.replace(space_value[:len(text) - MAX_CHARS], '', 1)
-                                # if pi != 1 and not PUT_RIGHT_SIDE and len(text) > PART1_LEN / 2:
-                                #     text = text[:int(PART1_LEN / 2)]
-                                # update left side fields margin
                                 if len(inline[i].text) != LEFT_SIDE_MARGIN and not PUT_RIGHT_SIDE \
                                         and field not in NOT_SPLIT_FIELDS:
                                     margin = LEFT_SIDE_MARGIN - len(inline[i].text)
                                     if margin >= 0:
                                         inline[i].text = inline[i].text.replace(str(field_value),
-                                                                                f"{',' * margin}{str(field_value)}")
+                                                                                f"{'.' * margin}{str(field_value)}")
                                     else:
-                                        inline[i].text = inline[i].text.replace(',', '', abs(margin))
-                                    # field_text = inline[i].text.split(field_key)[0]
-                                    # # inline[i].text = inline[i].text.split('  ')[0]
-                                    # margin = LEFT_SIDE_MARGIN - len(field_text) + len(str(field_value))
-                                    # # margin = LEFT_SIDE_MARGIN - (len(f"{field}{str(field_value)}"))
-                                    # # margin = LEFT_SIDE_MARGIN - (len(field) - len(str(field_value)))
-                                    # # inline[i].text = f"{field}{',' * margin}{field_value}"
-                                    # if margin > 0:
-                                    #     # inline[i].text = f"{inline[i].text.split(str(field_value))[0]}{',' * (margin + len(str(field_value)))}{field_value}"
-                                    #     inline[i].text = f"{field_text}{',' * margin}{field_value}"
-                                    # elif margin < 0:
-                                    #     inline[i].text = f"{field_text[:margin]}{field_value}"
-                                    # else:
-                                    #     inline[i].text = f"{inline[i].text}{field_value}"
-                                    left_side_values.append(inline[i].text)
-                                p.text = inline[i].text  # .replace(',', '.')
+                                        inline[i].text = inline[i].text.replace('.', '', abs(margin))
+                                    if field not in NOT_SPLIT_FIELDS:
+                                        text_length = len(inline[i].text.replace('.', ''))
+                                        if text_length > ls_max_chars:
+                                            ls_max_chars = text_length
+                                        left_side_values.setdefault(pi, [inline[i].text, text_length])
+                                p.text = inline[i].text
                                 counter += 1
-                                # print(pi, p.text, len(p.text), len(p.text) - len(str(field_value)))
-                                print(inline[i].text)
+                                # print(inline[i].text)
             if pi == 1 and self.__certificate_update.get('Image Path'):  # Inches
                 add_float_picture(p=p, image_path_or_stream=self.__certificate_update.get('Image Path'),
                                   width=self.__certificate_update.get('image_data').get('width'),
@@ -200,9 +157,22 @@ class App:
                                   pos_y=self.__certificate_update.get('image_data').get('position_y'),
                                   size_units=self.__certificate_update.get('image_data').get('size_units'))
 
+        # last document update
+        new_left_side_values = {}
+        for pi, p in enumerate(self.__doc.paragraphs, 1):
+            # p.paragraph_format.alignment = 2
             # p.paragraph_format.left_indent = 0
-            # p.paragraph_format.alignment = 4
             # p.paragraph_format.line_spacing = 0.85
+            # p.paragraph_format.keep_together = True
+            if left_side_values.get(pi) and left_side_values.get(pi)[1] < ls_max_chars:
+                inline, p_obj = p.runs, left_side_values.get(pi)
+                for i in range(len(inline)):
+                    if p_obj[0] in inline[i].text:
+                        point_margin = '.' * (ls_max_chars - p_obj[1])
+                        inline[i].text = inline[i].text.replace(point_margin, point_margin + point_margin, 1)
+                        p.text = inline[i].text
+                        new_left_side_values.setdefault(pi, [p.text, len(inline[i].text)])
+                        break
 
         # last update for doc ph
         # print(left_side_values, counter)

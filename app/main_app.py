@@ -138,11 +138,11 @@ class App:
                                     margin = LEFT_SIDE_MARGIN - len(inline[i].text)
                                     if margin >= 0:
                                         inline[i].text = inline[i].text.replace(str(field_value),
-                                                                                f"{'.' * margin}{str(field_value)}")
+                                                                                f"{',' * margin}{str(field_value)}")
                                     else:
-                                        inline[i].text = inline[i].text.replace('.', '', abs(margin))
+                                        inline[i].text = inline[i].text.replace(',', '', abs(margin))
                                     if field not in NOT_SPLIT_FIELDS:
-                                        text_length = len(inline[i].text.replace('.', ''))
+                                        text_length = len(inline[i].text.replace(',', ''))
                                         if text_length > ls_max_chars:
                                             ls_max_chars = text_length
                                         left_side_values.setdefault(pi, [inline[i].text, text_length])
@@ -158,20 +158,33 @@ class App:
                                   size_units=self.__certificate_update.get('image_data').get('size_units'))
 
         # last document update
-        new_left_side_values = {}
+        if ls_max_chars % 2 > 0:
+            ls_max_chars += ls_max_chars % 2
+        new_left_side_values, first_row_rule = {}, None
         for pi, p in enumerate(self.__doc.paragraphs, 1):
             # p.paragraph_format.alignment = 2
             # p.paragraph_format.left_indent = 0
             # p.paragraph_format.line_spacing = 0.85
             # p.paragraph_format.keep_together = True
-            if left_side_values.get(pi) and left_side_values.get(pi)[1] < ls_max_chars:
+            if left_side_values.get(pi) and left_side_values.get(pi)[0] in p.text and left_side_values.get(pi)[
+                1] < ls_max_chars:
                 inline, p_obj = p.runs, left_side_values.get(pi)
                 for i in range(len(inline)):
                     if p_obj[0] in inline[i].text:
-                        point_margin = '.' * (ls_max_chars - p_obj[1])
-                        inline[i].text = inline[i].text.replace(point_margin, point_margin + point_margin, 1)
+                        point_margin = ',' * (ls_max_chars - p_obj[1])
+                        point_margin = point_margin
+                        txt_split = inline[i].text.split(',')
+                        new_p_txt = f"{txt_split[0]}{',' * inline[i].text.count(',')}{point_margin}{txt_split[-1]}"
+                        if first_row_rule is None and len(new_p_txt) % 2 > 0:
+                            new_p_txt = new_p_txt.replace(',', ',,', 1)
+                        if first_row_rule is not None and len(new_p_txt) > first_row_rule:
+                            point_margin = (len(new_p_txt) - first_row_rule) * ','
+                            new_p_txt = new_p_txt.replace(point_margin, '', 1)
+                        inline[i].text = inline[i].text.replace(inline[i].text, new_p_txt)
                         p.text = inline[i].text
-                        new_left_side_values.setdefault(pi, [p.text, len(inline[i].text)])
+                        new_left_side_values.setdefault(pi, [p.text, len(p.text)])
+                        if first_row_rule is None:
+                            first_row_rule = len(p.text)
                         break
 
         # last update for doc ph

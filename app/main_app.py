@@ -4,10 +4,9 @@ import streamlit as st
 import os
 import json
 
-import textwrap
 from docx.enum.style import WD_STYLE_TYPE
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-from docx.shared import Inches, Cm, Pt
+from docx.shared import Pt
+from fpdf import FPDF
 
 from app.read import add_float_picture
 
@@ -16,13 +15,15 @@ from docx import Document
 from contants import General, Keys, Types
 from PIL import Image
 
-TEMPLATE_PATH = f'{os.getcwd()}/files/template_old.docx'
+TEMPLATE_PATH = f'{os.getcwd()}/files/template.docx'
 MAX_CHARS, PART1_LEN, LEFT_SIDE_MARGIN = 280, 268, 52
 CM_DEFAULT_VALUES = [4.85, 4.85, 9.37, 0.75]
 INCHES_DEFAULT_VALUES = [1.91, 1.91, 3.69, 0.3]
+PAGE_SIZE = 110, 210
 BOLD_FIELDS = ["Certificate number", 'Apprised Retail Price', "Currency"]
 NOT_SPLIT_FIELDS = ["Date", "Additional comments"] + BOLD_FIELDS
 PUT_RIGHT_SIDE = False
+FONT_NAME, FONT_SIZE = "Arial", 7
 
 
 class App:
@@ -30,12 +31,20 @@ class App:
         with open(f"{os.getcwd()}/app/config.json", 'r') as f:
             self.__config = json.loads(f.read())
         self.__doc = Document(TEMPLATE_PATH)
+        self.__doc_bold_style = self.__doc.styles.add_style('BoldStyle', WD_STYLE_TYPE.CHARACTER)
         self.__st = st
         self.__st.set_page_config(page_title=General.APP_NAME, layout="wide")
         self.__st.title(General.APP_NAME)
         self.__side_bar_fields = self.__initiate_ui_field_options(sidebar=True)
         self.__center_fields = self.__initiate_ui_field_options(sidebar=False)
         self.__certificate_update = {}
+
+    @property
+    def __get_width_object(self):
+        pdf = FPDF('p', 'mm', PAGE_SIZE)
+        pdf.set_font(FONT_NAME, size=FONT_SIZE)
+        pdf.add_page(orientation='l')
+        return pdf
 
     def __set_columns_by_type(self, key, obj: dict):
         obj_type, value, desc = obj[Keys.TYPE], None, obj[Keys.DESC]
@@ -112,54 +121,49 @@ class App:
                     self.__st.json(self.__certificate_update)
                     self.__st.session_state['data'] = self.__certificate_update
         else:
-            # with self.__st.form(key='SF'):
             with self.__st.sidebar:
                 for k, o in self.__side_bar_fields.items():
                     self.__set_columns_by_type(key=k, obj=o)
 
+    def __set_bold_txt(self, p):
+        font = self.__doc_bold_style.font
+        font.name = FONT_NAME
+        font.size = Pt(FONT_SIZE)
+        font.complex_script = True
+        font.rtl = False
+        p_txt = p.text
+        p.clear()
+        p.add_run(p_txt, style='BoldStyle').bold = True
+
     def __create_new_template(self):
+        # set unique style
         doc_styles = self.__doc.styles['Normal']
         font = doc_styles.font
-        font.name = 'Arial'
-        font.size = Pt(7)
-        left_side_values, ls_max_chars, counter = {}, 0, 0
-        # doc = self.__doc.styles
+        font.name = FONT_NAME
+        font.size = Pt(FONT_SIZE)
+        update_width_values, cn_pi = {}, 0
+        # step 1 - replace doc values
         for pi, p in enumerate(self.__doc.paragraphs, 1):
-            # p.paragraph_format.alignment = 2
-            # print(p.text.split('\n'), p.text.count('\n'))
+            p.paragraph_format.alignment = 2
+            p.style.font.bold = False
             for field, field_value in self.__certificate_update.items():
                 if field_value is not None and len(str(field_value)) > 0:
                     field_key, line_field_margin = '{' + field + '}', 0
                     if field_key in p.text:
-                        value_len_before, p_value_len, p_len = len(field_key), len(str(field_value)), len(p.text)
                         inline = p.runs
                         for i in range(len(inline)):
                             if field_key in inline[i].text:
-                                if field in NOT_SPLIT_FIELDS:
-                                    inline[i].text = inline[i].text.replace(field_key, str(field_value))
-                                elif not PUT_RIGHT_SIDE and field not in NOT_SPLIT_FIELDS:
-                                    margin = value_len_before - p_value_len  # if ls_max_chars == 0:
-                                    if margin > 0:
-                                        new_p_value = ',' * (margin + len(str(field_value))) + str(field_value)
-                                        inline[i].text = inline[i].text.replace(field_key, new_p_value)
-                                    elif margin < 0:
-                                        delete_margin = ',' * (p_value_len - value_len_before)
-                                        # new_p_value = ',' * (value_len_before - p_value_len) + str(field_value)
-                                        inline[i].text = inline[i].text.replace(field_key, str(field_value))
-                                        inline[i].text = inline[i].text.replace(delete_margin, '', 1)
-                                    else:
-                                        inline[i].text = inline[i].text.replace(field_key, str(field_value))
-                                p.text = f"{inline[i].text}"
-                                counter += 1
-                                print(value_len_before, p_value_len, p_len, len(p.text))
-                                # print(inline[i].text)
-                    # if pi > 1:
-                    #     new_p_txt = p.text
-                    #     p.clear()
-                    #     is_bold = True if field in BOLD_FIELDS and pi == 2 else False
-                    #     p.add_run(new_p_txt, style='CommentsStyle').bold = is_bold
-                    # break
+                                inline[i].text = inline[i].text.replace(field_key, str(field_value))
+                                p.text = inline[i].text
+                                if field not in NOT_SPLIT_FIELDS:
+                                    update_width_values.setdefault(pi, p.text)
+                                elif field in BOLD_FIELDS:
+                                    self.__set_bold_txt(p)
+                                    if field == BOLD_FIELDS[0]:
+                                        cn_pi = pi
+                        # print(len(p.text), p.text)
 
+            # add new photo
             if pi == 1 and self.__certificate_update.get('Image Path'):  # Inches
                 add_float_picture(p=p, image_path_or_stream=self.__certificate_update.get('Image Path'),
                                   width=self.__certificate_update.get('image_data').get('width'),
@@ -167,38 +171,38 @@ class App:
                                   pos_x=self.__certificate_update.get('image_data').get('position_x'),
                                   pos_y=self.__certificate_update.get('image_data').get('position_y'),
                                   size_units=self.__certificate_update.get('image_data').get('size_units'))
-            print(p.text)
-        new_left_side_values, first_row_rule = {}, None
+
+        # step 2 - get min width
+        width_obj, min_width = self.__get_width_object, 3000
         for pi, p in enumerate(self.__doc.paragraphs, 1):
-            if left_side_values.get(pi) \
-                    and left_side_values.get(pi)[0] in p.text \
-                    and left_side_values.get(pi)[1] <= ls_max_chars:
-                inline, p_obj = p.runs, left_side_values.get(pi)
-                for i in range(len(inline)):
-                    if p_obj[0] in inline[i].text:
-                        point_margin = ',' * (ls_max_chars - p_obj[1])
-                        txt_split = inline[i].text.split(',')
-                        # point_margin = ',' * int((ls_max_chars - p_obj[1] + len(txt_split[-1])) / 2)
-                        # point_margin = point_margin
-                        new_p_txt = f"{txt_split[0]}{',' * (inline[i].text.count(',') - len(txt_split[-1]))}{point_margin}{txt_split[-1]}"
-                        if first_row_rule is None and len(new_p_txt) % 2 > 0:
-                            new_p_txt = new_p_txt.replace(',,', ',', 1)
-                        if first_row_rule is not None:
-                            if len(new_p_txt) > first_row_rule:
-                                point_margin = ((len(new_p_txt) - first_row_rule) // 2) * ','
-                                new_p_txt = new_p_txt.replace(point_margin, '', 1)
-                            elif len(new_p_txt) < first_row_rule and len(new_p_txt) % 2 > 0:
-                                point_margin = (len(new_p_txt) % 2) * ',,'
-                                new_p_txt = new_p_txt.replace(',', point_margin, 1)
-                        inline[i].text = inline[i].text.replace(inline[i].text, new_p_txt)
-                        p.text = inline[i].text
-                        new_left_side_values.setdefault(pi, [p.text, len(p.text)])
-                        if first_row_rule is None:
-                            first_row_rule = len(p.text)
-                        break
+            if pi in update_width_values.keys() and p.text in update_width_values.get(pi):
+                p_width = width_obj.get_string_width(p.text)
+                if p_width < min_width:
+                    min_width = p_width
+
+        # step 3 - update paragraph width using FPDF package
+        for pi, p in enumerate(self.__doc.paragraphs, 1):
+            if pi in update_width_values.keys() and p.text in update_width_values.get(pi):
+                p_width = width_obj.get_string_width(p.text)
+                p_txt = p.text
+                if p_width > min_width:
+                    while int(p_width) != int(min_width):
+                        p_txt = p_txt.replace(',', '', 1)
+                        p_width = width_obj.get_string_width(p_txt)
+                p.text = p_txt
+            elif pi == cn_pi:
+                cn_txt = p.text.replace(' ', '')
+                cn_width = width_obj.get_string_width(cn_txt)
+                if cn_width < min_width:
+                    while int(cn_width) != int(min_width) and cn_width < min_width:
+                        cn_txt = f" {cn_txt} "
+                        cn_width = width_obj.get_string_width(cn_txt)
+                p.text = cn_txt
+                self.__set_bold_txt(p)
+                p.paragraph_format.alignment = 2
+                p.paragraph_format.left_indent = 0
 
         # last update for doc ph
-        # print(left_side_values, counter)
         doc_path, doc_name = f"{os.getcwd()}/files/certificates/", f"{self.__certificate_update['Date']}_{self.__certificate_update['Certificate number']}.docx"
         doc_full_path = f"{doc_path}{doc_name}"
         self.__doc.save(doc_full_path)

@@ -7,6 +7,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+*.html
+files/certificates
 .idea
 .Python
 del-labs-env

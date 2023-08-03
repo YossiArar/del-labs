@@ -3,8 +3,11 @@ import mammoth
 import streamlit as st
 import os
 import json
+
+import textwrap
+from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-from docx.shared import Inches, Cm
+from docx.shared import Inches, Cm, Pt
 
 from app.read import add_float_picture
 
@@ -13,11 +16,12 @@ from docx import Document
 from contants import General, Keys, Types
 from PIL import Image
 
-TEMPLATE_PATH = f'{os.getcwd()}/files/template.docx'
+TEMPLATE_PATH = f'{os.getcwd()}/files/template_old.docx'
 MAX_CHARS, PART1_LEN, LEFT_SIDE_MARGIN = 280, 268, 52
 CM_DEFAULT_VALUES = [4.85, 4.85, 9.37, 0.75]
 INCHES_DEFAULT_VALUES = [1.91, 1.91, 3.69, 0.3]
-NOT_SPLIT_FIELDS = ["Date", "Certificate number", "Additional comments", 'Apprised Retail Price', "Currency"]
+BOLD_FIELDS = ["Certificate number", 'Apprised Retail Price', "Currency"]
+NOT_SPLIT_FIELDS = ["Date", "Additional comments"] + BOLD_FIELDS
 PUT_RIGHT_SIDE = False
 
 
@@ -114,41 +118,48 @@ class App:
                     self.__set_columns_by_type(key=k, obj=o)
 
     def __create_new_template(self):
+        doc_styles = self.__doc.styles['Normal']
+        font = doc_styles.font
+        font.name = 'Arial'
+        font.size = Pt(7)
         left_side_values, ls_max_chars, counter = {}, 0, 0
         # doc = self.__doc.styles
         for pi, p in enumerate(self.__doc.paragraphs, 1):
             # p.paragraph_format.alignment = 2
-            # p.paragraph_format.left_indent = 0
-            # p.paragraph_format.line_spacing = 1.15
-            # p.paragraph_format.keep_together = True
+            # print(p.text.split('\n'), p.text.count('\n'))
             for field, field_value in self.__certificate_update.items():
                 if field_value is not None and len(str(field_value)) > 0:
                     field_key, line_field_margin = '{' + field + '}', 0
                     if field_key in p.text:
+                        value_len_before, p_value_len, p_len = len(field_key), len(str(field_value)), len(p.text)
                         inline = p.runs
-                        # Loop added to work with runs (strings with same style)
                         for i in range(len(inline)):
                             if field_key in inline[i].text:
-                                if not PUT_RIGHT_SIDE:
-                                    inline[i].text = inline[i].text.replace(field_key, str(field_value), 1)
-                                else:
+                                if field in NOT_SPLIT_FIELDS:
                                     inline[i].text = inline[i].text.replace(field_key, str(field_value))
-                                if len(inline[i].text) != LEFT_SIDE_MARGIN and not PUT_RIGHT_SIDE \
-                                        and field not in NOT_SPLIT_FIELDS:
-                                    margin = LEFT_SIDE_MARGIN - len(inline[i].text)
-                                    if margin >= 0:
-                                        inline[i].text = inline[i].text.replace(str(field_value),
-                                                                                f"{',' * margin}{str(field_value)}")
+                                elif not PUT_RIGHT_SIDE and field not in NOT_SPLIT_FIELDS:
+                                    margin = value_len_before - p_value_len  # if ls_max_chars == 0:
+                                    if margin > 0:
+                                        new_p_value = ',' * (margin + len(str(field_value))) + str(field_value)
+                                        inline[i].text = inline[i].text.replace(field_key, new_p_value)
+                                    elif margin < 0:
+                                        delete_margin = ',' * (p_value_len - value_len_before)
+                                        # new_p_value = ',' * (value_len_before - p_value_len) + str(field_value)
+                                        inline[i].text = inline[i].text.replace(field_key, str(field_value))
+                                        inline[i].text = inline[i].text.replace(delete_margin, '', 1)
                                     else:
-                                        inline[i].text = inline[i].text.replace(',', '', abs(margin))
-                                    if field not in NOT_SPLIT_FIELDS:
-                                        text_length = len(inline[i].text.replace(',', ''))
-                                        if text_length > ls_max_chars:
-                                            ls_max_chars = text_length
-                                        left_side_values.setdefault(pi, [inline[i].text, text_length])
-                                p.text = inline[i].text
+                                        inline[i].text = inline[i].text.replace(field_key, str(field_value))
+                                p.text = f"{inline[i].text}"
                                 counter += 1
+                                print(value_len_before, p_value_len, p_len, len(p.text))
                                 # print(inline[i].text)
+                    # if pi > 1:
+                    #     new_p_txt = p.text
+                    #     p.clear()
+                    #     is_bold = True if field in BOLD_FIELDS and pi == 2 else False
+                    #     p.add_run(new_p_txt, style='CommentsStyle').bold = is_bold
+                    # break
+
             if pi == 1 and self.__certificate_update.get('Image Path'):  # Inches
                 add_float_picture(p=p, image_path_or_stream=self.__certificate_update.get('Image Path'),
                                   width=self.__certificate_update.get('image_data').get('width'),
@@ -156,30 +167,29 @@ class App:
                                   pos_x=self.__certificate_update.get('image_data').get('position_x'),
                                   pos_y=self.__certificate_update.get('image_data').get('position_y'),
                                   size_units=self.__certificate_update.get('image_data').get('size_units'))
-
-        # last document update
-        if ls_max_chars % 2 > 0:
-            ls_max_chars += ls_max_chars % 2
+            print(p.text)
         new_left_side_values, first_row_rule = {}, None
         for pi, p in enumerate(self.__doc.paragraphs, 1):
-            # p.paragraph_format.alignment = 2
-            # p.paragraph_format.left_indent = 0
-            # p.paragraph_format.line_spacing = 0.85
-            # p.paragraph_format.keep_together = True
-            if left_side_values.get(pi) and left_side_values.get(pi)[0] in p.text and left_side_values.get(pi)[
-                1] < ls_max_chars:
+            if left_side_values.get(pi) \
+                    and left_side_values.get(pi)[0] in p.text \
+                    and left_side_values.get(pi)[1] <= ls_max_chars:
                 inline, p_obj = p.runs, left_side_values.get(pi)
                 for i in range(len(inline)):
                     if p_obj[0] in inline[i].text:
                         point_margin = ',' * (ls_max_chars - p_obj[1])
-                        point_margin = point_margin
                         txt_split = inline[i].text.split(',')
-                        new_p_txt = f"{txt_split[0]}{',' * inline[i].text.count(',')}{point_margin}{txt_split[-1]}"
+                        # point_margin = ',' * int((ls_max_chars - p_obj[1] + len(txt_split[-1])) / 2)
+                        # point_margin = point_margin
+                        new_p_txt = f"{txt_split[0]}{',' * (inline[i].text.count(',') - len(txt_split[-1]))}{point_margin}{txt_split[-1]}"
                         if first_row_rule is None and len(new_p_txt) % 2 > 0:
-                            new_p_txt = new_p_txt.replace(',', ',,', 1)
-                        if first_row_rule is not None and len(new_p_txt) > first_row_rule:
-                            point_margin = (len(new_p_txt) - first_row_rule) * ','
-                            new_p_txt = new_p_txt.replace(point_margin, '', 1)
+                            new_p_txt = new_p_txt.replace(',,', ',', 1)
+                        if first_row_rule is not None:
+                            if len(new_p_txt) > first_row_rule:
+                                point_margin = ((len(new_p_txt) - first_row_rule) // 2) * ','
+                                new_p_txt = new_p_txt.replace(point_margin, '', 1)
+                            elif len(new_p_txt) < first_row_rule and len(new_p_txt) % 2 > 0:
+                                point_margin = (len(new_p_txt) % 2) * ',,'
+                                new_p_txt = new_p_txt.replace(',', point_margin, 1)
                         inline[i].text = inline[i].text.replace(inline[i].text, new_p_txt)
                         p.text = inline[i].text
                         new_left_side_values.setdefault(pi, [p.text, len(p.text)])

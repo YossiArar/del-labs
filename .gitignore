@@ -10,6 +10,7 @@ __pycache__/
 .idea
 .Python
 del-labs-env
+play.py
 playground.py
 build/
 develop-eggs/

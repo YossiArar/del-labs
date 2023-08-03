@@ -4,6 +4,7 @@ class General:
 
 class Keys:
     TYPE = 'type'
+    SECOND_TYPE = 'second_type'
     SIDEBAR = 'sidebar'
     DESC = 'desc'
     OPTIONS = 'options'

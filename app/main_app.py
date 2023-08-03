@@ -22,6 +22,7 @@ INCHES_DEFAULT_VALUES = [1.91, 1.91, 3.69, 0.3]
 PAGE_SIZE = 110, 210
 BOLD_FIELDS = ["Certificate number", 'Apprised Retail Price', "Currency"]
 NOT_SPLIT_FIELDS = ["Date", "Additional comments"] + BOLD_FIELDS
+FILL_EMPTY_TXT, UPDATE_ROW_WIDTH = "Fill Empty Text", "Update Row Width"
 PUT_RIGHT_SIDE = False
 FONT_NAME, FONT_SIZE = "Arial", 7
 
@@ -47,24 +48,28 @@ class App:
         return pdf
 
     def __set_columns_by_type(self, key, obj: dict):
-        obj_type, value, desc = obj[Keys.TYPE], None, obj[Keys.DESC]
+        obj_type, value, desc = obj[Keys.TYPE], None if not obj[Keys.OPTIONS] else obj[Keys.OPTIONS][0], obj[Keys.DESC]
         label = key if obj_type == Types.CB else f"{key}{'' if not desc else f' - {desc}'}:"
         match obj_type:
             case Types.SELECT_BOX:
                 value = self.__st.selectbox(label=label, options=obj[Keys.OPTIONS])
             case Types.FLOAT:
-                value = self.__st.number_input(label=label, min_value=0.0)
+                value = self.__st.number_input(label=label, min_value=0.0, value=0.0 if value is None else value)
             case Types.INT:
-                value = self.__st.number_input(label=label, min_value=0)
+                value = self.__st.number_input(label=label, min_value=0, value=0 if value is None else value)
             case Types.TXT:
                 value = self.__st.text_input(label=label)
             case Types.DATE_INPUT:
-                # value = str(self.__st.date_input(label=label))
                 value = self.__st.date_input(label=label)
                 day, month, year = f"0{value.day}" if value.day < 10 else value.day, f"0{value.month}" if value.month < 10 else value.day, value.year
                 value = f"{day}-{month}-{year}"
             case Types.CB:
                 value = self.__st.checkbox(label=label, value=False)
+                if value and Keys.SECOND_TYPE in obj.keys():
+                    if obj[Keys.SECOND_TYPE] == Types.INT:
+                        sec_value = 0 if not obj[Keys.OPTIONS] else obj[Keys.OPTIONS][0]
+                        value = self.__st.number_input(label=label, min_value=0, value=sec_value)
+
             case Types.IMAGE:
                 value = self.__st.text_input(label).replace(
                     f"file:{'///' if 'Windows' in platform.platform() else '//'}", '')
@@ -130,7 +135,7 @@ class App:
         font.name = FONT_NAME
         font.size = Pt(FONT_SIZE)
         font.complex_script = True
-        font.rtl = False
+        font.rtl = True
         p_txt = p.text
         p.clear()
         p.add_run(p_txt, style='BoldStyle').bold = True
@@ -142,6 +147,8 @@ class App:
         font.name = FONT_NAME
         font.size = Pt(FONT_SIZE)
         update_width_values, cn_pi = {}, 0
+        fill_empty_txt, update_row_width = self.__certificate_update[FILL_EMPTY_TXT], self.__certificate_update[
+            UPDATE_ROW_WIDTH]
         # step 1 - replace doc values
         for pi, p in enumerate(self.__doc.paragraphs, 1):
             p.paragraph_format.alignment = 2
@@ -161,7 +168,6 @@ class App:
                                     self.__set_bold_txt(p)
                                     if field == BOLD_FIELDS[0]:
                                         cn_pi = pi
-                        # print(len(p.text), p.text)
 
             # add new photo
             if pi == 1 and self.__certificate_update.get('Image Path'):  # Inches
@@ -173,25 +179,35 @@ class App:
                                   size_units=self.__certificate_update.get('image_data').get('size_units'))
 
         # step 2 - get min width
-        width_obj, min_width = self.__get_width_object, 3000
-        for pi, p in enumerate(self.__doc.paragraphs, 1):
-            if pi in update_width_values.keys() and p.text in update_width_values.get(pi):
-                p_width = width_obj.get_string_width(p.text)
-                if p_width < min_width:
-                    min_width = p_width
+        width_obj = self.__get_width_object
+        if update_row_width is None:
+            min_width = 3000
+            for pi, p in enumerate(self.__doc.paragraphs, 1):
+                if pi in update_width_values.keys() and p.text in update_width_values.get(pi):
+                    p_width = width_obj.get_string_width(p.text)
+                    if p_width < min_width:
+                        min_width = p_width
+        else:
+            min_width = update_row_width
+
+        self.__st.info(f"Paragraphs row width: {int(min_width)}")
 
         # step 3 - update paragraph width using FPDF package
         for pi, p in enumerate(self.__doc.paragraphs, 1):
             if pi in update_width_values.keys() and p.text in update_width_values.get(pi):
                 p_width = width_obj.get_string_width(p.text)
+                if p_width < min_width:
+                    # set big margin
+                    p.text = p.text.replace(',', ',' * int(((min_width - p_width) * 2)), 1)
+                    p_width = width_obj.get_string_width(p.text)
                 p_txt = p.text
                 if p_width > min_width:
                     while int(p_width) != int(min_width):
                         p_txt = p_txt.replace(',', '', 1)
                         p_width = width_obj.get_string_width(p_txt)
-                p.text = p_txt
+                p.text = p_txt.replace(',', fill_empty_txt)
             elif pi == cn_pi:
-                cn_txt = p.text.replace(' ', '')
+                cn_txt = p.text  # .replace(' ', '')
                 cn_width = width_obj.get_string_width(cn_txt)
                 if cn_width < min_width:
                     while int(cn_width) != int(min_width) and cn_width < min_width:

@@ -177,6 +177,21 @@
       "€"
     ]
   },
+  "Fill Empty Text": {
+    "type": "selectbox",
+    "sidebar": true,
+    "desc": "",
+    "options": [".", ",", " "]
+  },
+
+  "Update Row Width": {
+    "type": "checkbox",
+    "second_type": "int",
+    "sidebar": true,
+    "desc": "",
+    "options": [57]
+  },
+
   "Image Path": {
     "type": "image",
     "sidebar": false,
